@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIFAR-10 Model Tester (FastAPI)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #f0f4f8;
+        }
+    </style>
+</head>
+<body class="font-sans flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
+        <h1 class="text-3xl font-bold mb-4 text-gray-800">Uji Model Klasifikasi CIFAR-10</h1>
+        <p class="text-gray-600 mb-6">Unggah gambar (mobil, pesawat, kucing, dll.) untuk melihat prediksi model.</p>
+        
+        <!-- Form untuk mengunggah file -->
+        <form id="uploadForm" class="flex flex-col items-center">
+            <input type="file" id="fileInput" name="file" accept="image/*" class="mb-4 p-2 border border-gray-300 rounded-md w-full">
+            <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded-md w-full hover:bg-green-700 transition-colors">
+                Prediksi
+            </button>
+        </form>
+        
+        <!-- Area untuk menampilkan hasil -->
+        <div id="result" class="mt-8 hidden">
+            <h2 class="text-xl font-semibold mb-2 text-gray-700">Hasil Prediksi:</h2>
+            <img id="uploadedImage" class="mt-4 mb-4 mx-auto rounded-md" style="max-width: 200px; max-height: 200px;">
+            <p class="text-gray-800 text-lg">Prediksi: <strong id="predictionResult"></strong></p>
+            <p class="text-gray-600">Kepercayaan: <span id="confidenceResult"></span></p>
+        </div>
+        
+        <div id="error" class="mt-8 hidden text-red-600 font-semibold">
+            <p id="errorMessage"></p>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('fileInput');
+        const resultDiv = document.getElementById('result');
+        const errorDiv = document.getElementById('error');
+        const uploadedImage = document.getElementById('uploadedImage');
+        const predictionResult = document.getElementById('predictionResult');
+        const confidenceResult = document.getElementById('confidenceResult');
+        const errorMessage = document.getElementById('errorMessage');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const file = fileInput.files[0];
+            if (!file) {
+                errorDiv.classList.remove('hidden');
+                errorMessage.textContent = 'Pilih file gambar terlebih dahulu.';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                uploadedImage.src = event.target.result;
+                uploadedImage.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+
+            try {
+                // Kirim file ke endpoint API FastAPI
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    predictionResult.textContent = data.prediction;
+                    confidenceResult.textContent = `${(data.confidence * 100).toFixed(2)}%`;
+                    resultDiv.classList.remove('hidden');
+                    errorDiv.classList.add('hidden');
+                } else {
+                    errorDiv.classList.remove('hidden');
+                    errorMessage.textContent = data.error || 'Terjadi kesalahan saat memprediksi.';
+                    resultDiv.classList.add('hidden');
+                }
+            } catch (err) {
+                errorDiv.classList.remove('hidden');
+                errorMessage.textContent = 'Gagal terhubung ke server. Pastikan server FastAPI sudah berjalan di port 8000.';
+                resultDiv.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
